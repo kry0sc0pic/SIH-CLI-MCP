@@ -31,7 +31,7 @@ def refresh() -> None:
 
 @app.command()
 def search(
-    query: Optional[str] = typer.Argument(None, help="Terms, all must match"),
+    query: Optional[str] = typer.Argument(None, help="Free-text query, ranked by relevance"),
     org: Optional[str] = typer.Option(None, "--org", "-o"),
     category: Optional[str] = typer.Option(None, "--category", "-c"),
     theme: Optional[str] = typer.Option(None, "--theme", "-t"),
