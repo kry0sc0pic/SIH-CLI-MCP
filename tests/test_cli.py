@@ -48,3 +48,16 @@ def test_facets():
 
 def test_search_bad_sort_fails():
     assert runner.invoke(app, ["search", "--sort", "bogus"]).exit_code != 0
+
+
+def test_closed_shown_red_not_zero():
+    from sih import cli
+
+    p = cli.core.get("SIH1002")
+    assert cli._ideas(p) == "[red]closed[/red]"
+    r = runner.invoke(app, ["search", "--org", "isro"], env={"COLUMNS": "200"})
+    assert "closed" in r.output and "0/" not in r.output
+    j = json.loads(runner.invoke(app, ["show", "SIH1002", "--json"]).output)
+    assert j["ideas"] is None and j["closed"] is True
+    assert "closed" in runner.invoke(app, ["show", "SIH1002"]).output
+    assert cli._ideas(cli.core.get("SIH1001")) == "3/500"

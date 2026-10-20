@@ -27,7 +27,7 @@ def _row(n, org, title, cat, num, ideas, theme, deadline, desc, dataset=""):
 
 ROWS = [
     (1, "AICTE", "Drone swarm for farms", "software", "SIH1001", "3/500", "Agriculture", "28 October 2026", "Use drones and AI for crops.", '<a href="https://x.test/data">d</a>'),
-    (2, "ISRO", "Satellite telemetry parser", "Hardware", "SIH1002", "0", "Space Technology", "05 October 2026", "Parse telemetry frames."),
+    (2, "ISRO", "Satellite telemetry parser", "Hardware", "SIH1002", "Idea Submissions Closed", "Space Technology", "05 October 2026", "Parse telemetry frames."),
     (3, "NTRO", "Cyber threat triage", "Software", "SIH1010", "12/500", "Blockchain & Cybersecurity", "20 October 2026", "Triage alerts with ai models."),
     (4, "AICTE", "Campus portal", "Software", "SIH1003", "7/500", "Smart Automation", "garbage date", "Tribal affairs portal."),
 ]

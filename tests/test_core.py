@@ -22,7 +22,8 @@ def test_parse_fields(html):
 
 def test_parse_edge_cases(html):
     items = core.parse(html)
-    assert (items[1].ideas, items[1].ideas_cap) == (0, None)
+    assert (items[1].ideas, items[1].ideas_cap, items[1].closed) == (None, None, True)  # no count when closed
+    assert items[0].closed is False
     assert items[3].deadline is None
 
 
@@ -71,7 +72,7 @@ def test_search_filters():
     assert nums(organization="aicte")[1] == ["SIH1001", "SIH1003"]
     assert nums(theme="space")[1] == ["SIH1002"]
     assert nums(department="isro")[1] == ["SIH1002"]
-    assert nums(max_ideas=3)[1] == ["SIH1001", "SIH1002"]
+    assert nums(max_ideas=3)[1] == ["SIH1001"]  # closed has no count, so excluded
     assert nums(min_ideas=7)[1] == ["SIH1003", "SIH1010"]
 
 
@@ -112,6 +113,7 @@ def test_open_only_excludes_past(monkeypatch):
 
 def test_sort_and_pagination():
     assert nums(sort="ideas", desc=True)[1] == ["SIH1010", "SIH1003", "SIH1001", "SIH1002"]
+    assert nums(sort="ideas")[1] == ["SIH1001", "SIH1003", "SIH1010", "SIH1002"]  # closed last either way
     assert nums(sort="title")[1][0] == "SIH1003"  # Campus portal
     assert nums(sort="deadline")[1][0] == "SIH1002"
     total, page = nums(limit=2, offset=1)

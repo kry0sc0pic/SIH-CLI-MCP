@@ -40,3 +40,10 @@ def test_facets_tool():
 def test_refresh_tool():
     d = call("refresh_problem_statements")
     assert d["count"] == 4 and d["cached"] is True
+
+
+def test_closed_reported_as_null_and_flagged():
+    d = call("get_problem_statement", {"ps_number": "SIH1002"})
+    assert d["ideas"] is None and d["closed"] is True
+    d = call("search_problem_statements", {"max_ideas": 100})
+    assert "SIH1002" not in [r["ps_number"] for r in d["results"]]

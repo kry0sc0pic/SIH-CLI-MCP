@@ -37,7 +37,8 @@ def search_problem_statements(
 
     query: space-separated terms, all must match title/description/org/theme (ranked by relevance when sort is the default).
     organization/category/theme/department: case-insensitive substring filters (category is e.g. 'Software' or 'Hardware').
-    min_ideas/max_ideas: filter by number of ideas already submitted (low = less competition).
+    min_ideas/max_ideas: filter by number of ideas already submitted (low = less competition). Statements with closed
+    submissions have no count (ideas is null, closed is true): they are excluded by these filters and sorted last when sorting by ideas.
     open_only: exclude statements whose deadline has passed.
     deadline_from/deadline_to: inclusive ISO dates (YYYY-MM-DD) bounding the idea-submission deadline.
     sort: one of ps_number, title, organization, category, theme, ideas, deadline.

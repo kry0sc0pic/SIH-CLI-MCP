@@ -31,8 +31,9 @@ class PS:
     department: str
     category: str
     theme: str
-    ideas: int
+    ideas: int | None  # None when submissions are closed (the site hides the count)
     ideas_cap: int | None
+    closed: bool
     deadline: str | None  # ISO date
     description: str
     youtube: str = ""
@@ -81,7 +82,9 @@ def parse(html: str) -> list[PS]:
                 if th and td:
                     fields[th.get_text(strip=True)] = td
         txt = lambda k: _clean(fields[k].get_text("\n")) if k in fields else ""
-        count = re.match(r"\s*(\d+)\s*(?:/\s*(\d+))?", tds[5].get_text())
+        count_text = tds[5].get_text()
+        count = re.match(r"\s*(\d+)\s*(?:/\s*(\d+))?", count_text)
+        closed = "closed" in count_text.lower()
         links = [a["href"].strip() for a in fields.get("Dataset Link", Tag(name="x")).find_all("a", href=True) if a["href"].strip()]
         yt = [a["href"].strip() for a in fields.get("Youtube Link", Tag(name="x")).find_all("a", href=True) if a["href"].strip()]
         out.append(
@@ -93,8 +96,9 @@ def parse(html: str) -> list[PS]:
                 department=txt("Department"),
                 category=tds[3].get_text(strip=True).capitalize(),
                 theme=tds[6].get_text(strip=True),
-                ideas=int(count.group(1)) if count else 0,
+                ideas=int(count.group(1)) if count else None,
                 ideas_cap=int(count.group(2)) if count and count.group(2) else None,
+                closed=closed,
                 deadline=_date(tds[7].get_text()),
                 description=txt("Description"),
                 youtube=yt[0] if yt else "",
@@ -117,7 +121,7 @@ def refresh() -> list[PS]:
 def load(force: bool = False) -> list[PS]:
     if not force and CACHE_FILE.exists():
         data = json.loads(CACHE_FILE.read_text())
-        if time.time() - data["fetched_at"] < CACHE_TTL:
+        if time.time() - data["fetched_at"] < CACHE_TTL and all("closed" in i for i in data["items"][:1]):
             return [PS(**i) for i in data["items"]]
     return refresh()
 
@@ -159,9 +163,9 @@ def search(
     for p in load(force):
         if not (_eq(p.organization, organization) and _eq(p.category, category) and _eq(p.theme, theme) and _eq(p.department, department)):
             continue
-        if max_ideas is not None and p.ideas > max_ideas:
+        if max_ideas is not None and (p.ideas is None or p.ideas > max_ideas):
             continue
-        if min_ideas is not None and p.ideas < min_ideas:
+        if min_ideas is not None and (p.ideas is None or p.ideas < min_ideas):
             continue
         if open_only and (p.deadline or "9999") < today:
             continue
@@ -177,7 +181,7 @@ def search(
             score = sum(3 for t in terms if t.search(p.title)) + sum(1 for t in terms if t.search(head) or t.search(p.description))
         scored.append((score, p))
     key = {
-        "ideas": lambda p: p.ideas,
+        "ideas": lambda p: p.ideas or 0,
         "deadline": lambda p: p.deadline or "9999",
         "ps_number": lambda p: (len(p.ps_number), p.ps_number),
     }.get(sort, lambda p: getattr(p, sort).lower())
@@ -186,6 +190,8 @@ def search(
     else:
         scored.sort(key=lambda sp: key(sp[1]), reverse=desc)
     items = [p for _, p in scored]
+    if sort == "ideas":  # unknown counts (closed) go last in either direction
+        items = [p for p in items if p.ideas is not None] + [p for p in items if p.ideas is None]
     return len(items), items[offset : offset + limit]
 
 

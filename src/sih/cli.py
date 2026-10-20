@@ -16,6 +16,12 @@ app = typer.Typer(help="Browse SIH problem statements.", no_args_is_help=True)
 console = Console()
 
 
+def _ideas(p: core.PS) -> str:
+    if p.ideas is None:
+        return "[red]closed[/red]" if p.closed else "?"
+    return f"{p.ideas}/{p.ideas_cap}" if p.ideas_cap else str(p.ideas)
+
+
 @app.command()
 def refresh() -> None:
     """Re-download from sih.gov.in."""
@@ -50,7 +56,7 @@ def search(
     for c in ("PS", "Org", "Title", "Cat", "Theme", "Ideas", "Deadline"):
         t.add_column(c, overflow="fold")
     for p in items:
-        t.add_row(p.ps_number, p.organization, p.title, p.category, p.theme, f"{p.ideas}/{p.ideas_cap or '-'}", p.deadline or "-")
+        t.add_row(p.ps_number, p.organization, p.title, p.category, p.theme, _ideas(p), p.deadline or "-")
     console.print(t)
 
 
@@ -64,7 +70,7 @@ def show(ps_number: str, as_json: bool = typer.Option(False, "--json")) -> None:
         console.print_json(json.dumps(p.summary(10**9)))
         return
     console.print(f"[bold]{p.ps_number}[/bold] {p.title}")
-    console.print(f"{p.organization} / {p.department} | {p.category} | {p.theme} | ideas {p.ideas}/{p.ideas_cap} | deadline {p.deadline}")
+    console.print(f"{p.organization} / {p.department} | {p.category} | {p.theme} | ideas {_ideas(p)} | deadline {p.deadline}")
     for label, v in (("Dataset", p.dataset_links), ("YouTube", p.youtube), ("Contact", p.contact)):
         if v:
             console.print(f"{label}: {v}")
