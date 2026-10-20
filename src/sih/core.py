@@ -13,13 +13,16 @@ from pathlib import Path
 import httpx
 from bs4 import BeautifulSoup, Tag
 
+from .ranking import Index
+
 URL = os.environ.get("SIH_URL", "https://www.sih.gov.in/sih2026PS")
 CACHE_DIR = Path(os.environ.get("SIH_CACHE_DIR", Path.home() / ".cache" / "sih"))
 CACHE_FILE = CACHE_DIR / "problem_statements.json"
 CACHE_TTL = 6 * 3600
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/130 Safari/537.36"
 
-SORT_KEYS = ("ps_number", "title", "organization", "category", "theme", "ideas", "deadline")
+MIN_RELATIVE_SCORE = 0.15
+SORT_KEYS = ("relevance", "ps_number", "title", "organization", "category", "theme", "ideas", "deadline")
 
 
 @dataclass
@@ -148,19 +151,29 @@ def search(
     open_only: bool = False,
     deadline_from: str | None = None,
     deadline_to: str | None = None,
-    sort: str = "ps_number",
+    sort: str | None = None,
     desc: bool = False,
     limit: int = 20,
     offset: int = 0,
     force: bool = False,
+    include_closed: bool = False,
 ) -> tuple[int, list[PS]]:
-    """Filter/sort. `query` terms are ANDed word-prefix matches (whole-word for terms of 3 chars or fewer); title hits rank above description hits. Returns (total, page)."""
+    """Filter, rank and sort. Returns (total, page).
+
+    `query` is ranked (BM25 over title/theme/org/description with stemming, prefix, typo and synonym matching);
+    statements matching only some terms are kept but rank lower. sort defaults to relevance when there is a query,
+    else ps_number. Closed statements are hidden unless include_closed, and always come after open ones.
+    """
+    sort = sort or ("relevance" if query else "ps_number")
     if sort not in SORT_KEYS:
         raise ValueError(f"sort must be one of {SORT_KEYS}")
     today = datetime.now().date().isoformat()
-    terms = [re.compile(r"\b" + re.escape(t) + (r"\b" if len(t) <= 3 else ""), re.I) for t in query.split()] if query else []
-    scored: list[tuple[int, PS]] = []
-    for p in load(force):
+    everything = load(force)
+    scores = Index([(p.title, f"{p.theme} {p.organization} {p.department} {p.ps_number}", p.description) for p in everything]).score(query) if query else None
+    scored: list[tuple[float, PS]] = []
+    for i, p in enumerate(everything):
+        if p.closed and not include_closed:
+            continue
         if not (_eq(p.organization, organization) and _eq(p.category, category) and _eq(p.theme, theme) and _eq(p.department, department)):
             continue
         if max_ideas is not None and (p.ideas is None or p.ideas > max_ideas):
@@ -173,26 +186,30 @@ def search(
             continue
         if deadline_to and (p.deadline or "9999") > deadline_to:
             continue
-        score = 0
-        if terms:
-            head = f"{p.title} {p.theme} {p.organization} {p.department} {p.ps_number}"
-            if not all(t.search(head) or t.search(p.description) for t in terms):
-                continue
-            score = sum(3 for t in terms if t.search(p.title)) + sum(1 for t in terms if t.search(head) or t.search(p.description))
-        scored.append((score, p))
+        if scores is not None and scores[i] <= 0:
+            continue
+        scored.append((scores[i] if scores else 0.0, p))
+    if scored and scores is not None:  # drop weak partial matches next to strong ones among what is being shown
+        cutoff = MIN_RELATIVE_SCORE * max(sc for sc, _ in scored)
+        scored = [(sc, p) for sc, p in scored if sc >= cutoff]
     key = {
         "ideas": lambda p: p.ideas or 0,
         "deadline": lambda p: p.deadline or "9999",
         "ps_number": lambda p: (len(p.ps_number), p.ps_number),
     }.get(sort, lambda p: getattr(p, sort).lower())
-    if terms and sort == "ps_number" and not desc:  # default sort on a text query = relevance
-        scored.sort(key=lambda sp: -sp[0])
+    if sort == "relevance":
+        scored.sort(key=lambda sp: sp[0], reverse=not desc)
     else:
         scored.sort(key=lambda sp: key(sp[1]), reverse=desc)
     items = [p for _, p in scored]
-    if sort == "ideas":  # unknown counts (closed) go last in either direction
-        items = [p for p in items if p.ideas is not None] + [p for p in items if p.ideas is None]
+    items = [p for p in items if not p.closed] + [p for p in items if p.closed]  # open first, whatever the sort
     return len(items), items[offset : offset + limit]
+
+
+def hidden_closed(**filters) -> int:
+    """How many closed statements a search with these filters leaves out by default."""
+    filters.pop("include_closed", None)
+    return search(include_closed=True, limit=0, **filters)[0] - search(limit=0, **filters)[0]
 
 
 def get(ref: str) -> PS | None:
@@ -200,12 +217,14 @@ def get(ref: str) -> PS | None:
     return next((p for p in load() if p.ps_number.upper().removeprefix("SIH") == ref or p.ps_id == ref), None)
 
 
-def facets() -> dict:
+def facets(include_closed: bool = False) -> dict:
     from collections import Counter
 
-    items = load()
+    everything = load()
+    items = [p for p in everything if include_closed or not p.closed]
     return {
         "total": len(items),
+        "closed_hidden": len(everything) - len(items),
         "organization": Counter(p.organization for p in items).most_common(),
         "category": Counter(p.category for p in items).most_common(),
         "theme": Counter(p.theme for p in items).most_common(),

@@ -26,7 +26,7 @@ def test_search_deadline_options():
 
 
 def test_search_table():
-    r = runner.invoke(app, ["search", "--org", "isro"], env={"COLUMNS": "200"})
+    r = runner.invoke(app, ["search", "--org", "isro", "--closed"], env={"COLUMNS": "200"})
     assert r.exit_code == 0 and "SIH1002" in r.output and "1 of 1" in r.output
 
 
@@ -43,11 +43,21 @@ def test_show_missing():
 
 def test_facets():
     r = runner.invoke(app, ["facets"], env={"COLUMNS": "200"})
-    assert r.exit_code == 0 and "Total: 4" in r.output and "AICTE" in r.output
+    assert r.exit_code == 0 and "Total: 3 (1 closed hidden)" in r.output and "AICTE" in r.output
+    assert "Total: 4" in runner.invoke(app, ["facets", "--closed"]).output
 
 
 def test_search_bad_sort_fails():
     assert runner.invoke(app, ["search", "--sort", "bogus"]).exit_code != 0
+
+
+def test_closed_hidden_by_default_with_notice():
+    r = runner.invoke(app, ["search", "--org", "isro"], env={"COLUMNS": "200"})
+    assert "SIH1002" not in r.output
+    d = json.loads(runner.invoke(app, ["search", "--org", "isro", "--json"]).output)
+    assert d["total"] == 0 and d["closed_hidden"] == 1
+    d = json.loads(runner.invoke(app, ["search", "--org", "isro", "--closed", "--json"]).output)
+    assert d["total"] == 1 and d["closed_hidden"] == 0
 
 
 def test_closed_shown_red_not_zero():
@@ -55,7 +65,7 @@ def test_closed_shown_red_not_zero():
 
     p = cli.core.get("SIH1002")
     assert cli._ideas(p) == "[red]closed[/red]"
-    r = runner.invoke(app, ["search", "--org", "isro"], env={"COLUMNS": "200"})
+    r = runner.invoke(app, ["search", "--org", "isro", "--closed"], env={"COLUMNS": "200"})
     assert "closed" in r.output and "0/" not in r.output
     j = json.loads(runner.invoke(app, ["show", "SIH1002", "--json"]).output)
     assert j["ideas"] is None and j["closed"] is True

@@ -18,7 +18,11 @@ uv run sih show SIH26265
 uv run sih facets
 ```
 
-Filters: `--org --category --theme --dept --min-ideas --max-ideas --open --from --to`; sort with `--sort ps_number|title|organization|category|theme|ideas|deadline [--desc]`; page with `--limit --offset`.
+Search is ranked (BM25 over title, theme/org and description; title hits weigh most) and tolerates plurals, typos, prefixes and related words (`farming` finds agriculture/crop/farmer statements). Statements matching only some of your words still appear, lower down. Without `--sort` a query sorts by relevance.
+
+Statements whose idea submissions are closed are hidden by default (the table title says how many); pass `--closed` to include them, and they always come after open ones.
+
+Filters: `--org --category --theme --dept --min-ideas --max-ideas --open --from --to`; sort with `--sort relevance|ps_number|title|organization|category|theme|ideas|deadline [--desc]`; page with `--limit --offset`.
 
 ## MCP
 

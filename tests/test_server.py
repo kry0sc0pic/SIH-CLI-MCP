@@ -34,7 +34,8 @@ def test_get_tool():
 
 
 def test_facets_tool():
-    assert call("list_facets")["total"] == 4
+    assert call("list_facets")["total"] == 3
+    assert call("list_facets", {"include_closed": True})["total"] == 4
 
 
 def test_refresh_tool():
@@ -45,5 +46,19 @@ def test_refresh_tool():
 def test_closed_reported_as_null_and_flagged():
     d = call("get_problem_statement", {"ps_number": "SIH1002"})
     assert d["ideas"] is None and d["closed"] is True
-    d = call("search_problem_statements", {"max_ideas": 100})
+    d = call("search_problem_statements", {"include_closed": True})
+    assert [r["ps_number"] for r in d["results"]][-1] == "SIH1002"  # closed come last
+    d = call("search_problem_statements", {"max_ideas": 100, "include_closed": True})
     assert "SIH1002" not in [r["ps_number"] for r in d["results"]]
+
+
+def test_closed_hidden_by_default_and_reported():
+    d = call("search_problem_statements", {})
+    assert "SIH1002" not in [r["ps_number"] for r in d["results"]] and d["closed_hidden"] == 1
+    d = call("search_problem_statements", {"include_closed": True})
+    assert d["total"] == 4 and "closed_hidden" not in d
+
+
+def test_relevance_default_with_query():
+    d = call("search_problem_statements", {"query": "portal"})
+    assert d["results"][0]["ps_number"] == "SIH1003"

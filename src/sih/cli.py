@@ -41,18 +41,22 @@ def search(
     open_only: bool = typer.Option(False, "--open"),
     deadline_from: Optional[str] = typer.Option(None, "--from", help="YYYY-MM-DD"),
     deadline_to: Optional[str] = typer.Option(None, "--to", help="YYYY-MM-DD"),
-    sort: str = typer.Option("ps_number", "--sort", "-s", help="/".join(core.SORT_KEYS)),
+    sort: Optional[str] = typer.Option(None, "--sort", "-s", help="/".join(core.SORT_KEYS) + " (default: relevance with a query)"),
     desc: bool = typer.Option(False, "--desc"),
     limit: int = typer.Option(20, "--limit", "-n"),
     offset: int = typer.Option(0, "--offset"),
+    include_closed: bool = typer.Option(False, "--closed", help="Also list statements whose submissions are closed (shown after open ones)"),
     as_json: bool = typer.Option(False, "--json"),
 ) -> None:
-    """Filter and sort problem statements."""
-    total, items = core.search(query, org, category, theme, department, max_ideas, min_ideas, open_only, deadline_from, deadline_to, sort, desc, limit, offset)
+    """Ranked search, filter and sort. Closed statements are hidden unless --closed."""
+    filters = dict(query=query, organization=org, category=category, theme=theme, department=department, max_ideas=max_ideas,
+                   min_ideas=min_ideas, open_only=open_only, deadline_from=deadline_from, deadline_to=deadline_to)
+    total, items = core.search(sort=sort, desc=desc, limit=limit, offset=offset, include_closed=include_closed, **filters)
+    hidden = 0 if include_closed else core.hidden_closed(**filters)
     if as_json:
-        console.print_json(json.dumps({"total": total, "results": [p.summary() for p in items]}))
+        console.print_json(json.dumps({"total": total, "closed_hidden": hidden, "results": [p.summary() for p in items]}))
         return
-    t = Table(title=f"{len(items)} of {total}")
+    t = Table(title=f"{len(items)} of {total}" + (f" ({hidden} closed hidden; use --closed)" if hidden else ""))
     for c in ("PS", "Org", "Title", "Cat", "Theme", "Ideas", "Deadline"):
         t.add_column(c, overflow="fold")
     for p in items:
@@ -79,10 +83,10 @@ def show(ps_number: str, as_json: bool = typer.Option(False, "--json")) -> None:
 
 
 @app.command()
-def facets() -> None:
-    """Counts per organization, category and theme."""
-    f = core.facets()
-    console.print(f"Total: {f['total']}")
+def facets(include_closed: bool = typer.Option(False, "--closed")) -> None:
+    """Counts per organization, category and theme (open statements unless --closed)."""
+    f = core.facets(include_closed)
+    console.print(f"Total: {f['total']}" + (f" ({f['closed_hidden']} closed hidden)" if f["closed_hidden"] else ""))
     for k in ("category", "theme", "organization"):
         t = Table(title=k)
         t.add_column(k)

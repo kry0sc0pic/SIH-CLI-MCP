@@ -27,26 +27,36 @@ def search_problem_statements(
     open_only: bool = False,
     deadline_from: str | None = None,
     deadline_to: str | None = None,
-    sort: str = "ps_number",
+    sort: str | None = None,
     desc: bool = False,
     limit: int = 20,
     offset: int = 0,
     full_description: bool = False,
+    include_closed: bool = False,
 ) -> dict:
     """Search/filter/sort problem statements.
 
-    query: space-separated terms, all must match title/description/org/theme (ranked by relevance when sort is the default).
+    query: free text, ranked by relevance (title weighs most; handles plurals, typos, prefixes and related words like
+    farming/agriculture/crop). Statements matching only some terms are included but rank lower.
     organization/category/theme/department: case-insensitive substring filters (category is e.g. 'Software' or 'Hardware').
     min_ideas/max_ideas: filter by number of ideas already submitted (low = less competition). Statements with closed
     submissions have no count (ideas is null, closed is true): they are excluded by these filters and sorted last when sorting by ideas.
     open_only: exclude statements whose deadline has passed.
     deadline_from/deadline_to: inclusive ISO dates (YYYY-MM-DD) bounding the idea-submission deadline.
-    sort: one of ps_number, title, organization, category, theme, ideas, deadline.
+    sort: relevance (default with a query), ps_number (default otherwise), title, organization, category, theme, ideas, deadline.
+    include_closed: closed statements (submissions closed, no idea count) are hidden by default; when included they
+    always come after open ones. closed_hidden in the result says how many were left out.
     Descriptions are truncated unless full_description is true.
     """
-    total, items = core.search(query, organization, category, theme, department, max_ideas, min_ideas, open_only, deadline_from, deadline_to, sort, desc, limit, offset)
+    total, items = core.search(query, organization, category, theme, department, max_ideas, min_ideas, open_only, deadline_from, deadline_to, sort, desc, limit, offset, include_closed=include_closed)
     rows = [p.summary(10**9 if full_description else 240) for p in items]
-    return {"total": total, "offset": offset, "returned": len(rows), "results": rows}
+    out = {"total": total, "offset": offset, "returned": len(rows), "results": rows}
+    if not include_closed:
+        out["closed_hidden"] = core.hidden_closed(
+            query=query, organization=organization, category=category, theme=theme, department=department,
+            max_ideas=max_ideas, min_ideas=min_ideas, open_only=open_only, deadline_from=deadline_from, deadline_to=deadline_to,
+        )
+    return out
 
 
 @mcp.tool()
@@ -57,9 +67,9 @@ def get_problem_statement(ps_number: str) -> dict:
 
 
 @mcp.tool()
-def list_facets() -> dict:
-    """Counts of problem statements per organization, category and theme."""
-    return core.facets()
+def list_facets(include_closed: bool = False) -> dict:
+    """Counts of problem statements per organization, category and theme (open ones only unless include_closed)."""
+    return core.facets(include_closed)
 
 
 @mcp.tool()
