@@ -26,6 +26,16 @@ Filters: `--org --category --theme --dept --min-ideas --max-ideas --open --from 
 claude mcp add sih -- uv run --directory /path/to/SIH-CLI-MCP sih-mcp
 ```
 
+Or let the CLI do it for any supported agent (`claude`, `codex`, `gemini`, `cursor`, `opencode`, `claude-desktop`, `hermes`, or `all`):
+
+```sh
+uv run sih install cursor                  # print the command/config snippet
+uv run sih install cursor --apply          # actually write it
+uv run sih install all --source git        # use uvx from GitHub instead of this checkout
+```
+
+`--apply` merges into existing JSON configs without touching other servers (it refuses files that aren't plain JSON), and shells out to `claude mcp add` / `codex mcp add`. Hermes uses YAML, so it prints a `mcp_servers:` block for `~/.hermes/config.yaml` to paste.
+
 Tools: `search_problem_statements`, `get_problem_statement`, `list_facets`, `refresh_problem_statements`.
 
 ## Tests

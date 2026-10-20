@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from . import core
+from . import install as install_mod
 
 app = typer.Typer(help="Browse SIH problem statements.", no_args_is_help=True)
 console = Console()
@@ -83,6 +84,31 @@ def facets() -> None:
         for name, n in f[k]:
             t.add_row(name, str(n))
         console.print(t)
+
+
+@app.command()
+def install(
+    agent: str = typer.Argument(..., help="/".join(install_mod.AGENTS) + ", or 'all'"),
+    apply: bool = typer.Option(False, "--apply", help="Write the config instead of just printing it"),
+    source: Optional[str] = typer.Option(None, "--source", help="local (this checkout) or git (uvx from GitHub)"),
+) -> None:
+    """Show (or with --apply, perform) the MCP registration for an agent."""
+    agents = install_mod.AGENTS if agent == "all" else (agent,)
+    for a in agents:
+        if a not in install_mod.AGENTS:
+            raise typer.BadParameter(f"unknown agent {a!r}; choose from {', '.join(install_mod.AGENTS)}")
+    cmd = install_mod.server_command(source)
+    for a in agents:
+        if not apply:
+            console.print(f"[bold]{a}[/bold]")
+            console.print(install_mod.snippet(a, cmd), markup=False, highlight=False)
+            continue
+        try:
+            console.print(f"[green]{a}:[/green] {install_mod.apply(a, cmd)}", markup=True, highlight=False)
+        except (RuntimeError, FileNotFoundError) as e:
+            console.print(f"[red]{a}:[/red] {e}", markup=True)
+            if len(agents) == 1:
+                raise typer.Exit(1)
 
 
 @app.command()
