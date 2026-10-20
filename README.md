@@ -18,15 +18,6 @@ uv run sih show SIH26265
 uv run sih facets
 ```
 
-Interactive browser (list on the left, description and details on the right):
-
-```sh
-uv run sih browse                                   # same filters as search
-uv run sih browse drone --category software --open --sort ideas
-```
-
-Keys: `↑/↓` move (running off the end of a page flips to the next one), `←/→` or `p`/`n` change page, `/` search, `s` cycle sort, `d` asc/desc, `o` open-only, `Tab` focus the details pane to scroll it, `q` quit. Closed statements show **closed** in red.
-
 Filters: `--org --category --theme --dept --min-ideas --max-ideas --open --from --to`; sort with `--sort ps_number|title|organization|category|theme|ideas|deadline [--desc]`; page with `--limit --offset`.
 
 ## MCP
