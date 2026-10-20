@@ -61,6 +61,30 @@ def search(
 
 
 @app.command()
+def browse(
+    query: Optional[str] = typer.Argument(None, help="Terms, all must match"),
+    org: Optional[str] = typer.Option(None, "--org", "-o"),
+    category: Optional[str] = typer.Option(None, "--category", "-c"),
+    theme: Optional[str] = typer.Option(None, "--theme", "-t"),
+    department: Optional[str] = typer.Option(None, "--dept"),
+    min_ideas: Optional[int] = typer.Option(None, "--min-ideas"),
+    max_ideas: Optional[int] = typer.Option(None, "--max-ideas"),
+    open_only: bool = typer.Option(False, "--open"),
+    deadline_from: Optional[str] = typer.Option(None, "--from", help="YYYY-MM-DD"),
+    deadline_to: Optional[str] = typer.Option(None, "--to", help="YYYY-MM-DD"),
+    sort: str = typer.Option("ps_number", "--sort", "-s", help="/".join(core.SORT_KEYS)),
+    desc: bool = typer.Option(False, "--desc"),
+) -> None:
+    """Interactive browser: paginated list on the left, details on the right (arrows, n/p, / search, s sort)."""
+    from .tui import Filters, run
+
+    if sort not in core.SORT_KEYS:
+        raise typer.BadParameter(f"sort must be one of {', '.join(core.SORT_KEYS)}")
+    core.load()  # fetch/cache up front so errors surface before the UI starts
+    run(Filters(query, org, category, theme, department, min_ideas, max_ideas, open_only, deadline_from, deadline_to, sort, desc))
+
+
+@app.command()
 def show(ps_number: str, as_json: bool = typer.Option(False, "--json")) -> None:
     """Full details for one problem statement."""
     p = core.get(ps_number)
