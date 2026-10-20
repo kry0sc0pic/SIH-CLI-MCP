@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import core
 
@@ -48,6 +49,8 @@ def search_problem_statements(
     always come after open ones. closed_hidden in the result says how many were left out.
     Descriptions are truncated unless full_description is true.
     """
+    if sort is not None and sort not in core.SORT_KEYS:
+        raise ToolError(f"invalid sort {sort!r}; use one of: {', '.join(core.SORT_KEYS)}")
     total, items = core.search(query, organization, category, theme, department, max_ideas, min_ideas, open_only, deadline_from, deadline_to, sort, desc, limit, offset, include_closed=include_closed)
     rows = [p.summary(10**9 if full_description else 240) for p in items]
     out = {"total": total, "offset": offset, "returned": len(rows), "results": rows}

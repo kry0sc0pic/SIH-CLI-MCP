@@ -1,6 +1,9 @@
 import asyncio
 import json
 
+import pytest
+from mcp.server.mcpserver.exceptions import ToolError
+
 from sih.server import mcp
 
 
@@ -62,3 +65,8 @@ def test_closed_hidden_by_default_and_reported():
 def test_relevance_default_with_query():
     d = call("search_problem_statements", {"query": "portal"})
     assert d["results"][0]["ps_number"] == "SIH1003"
+
+
+def test_bad_sort_error_is_explained():
+    with pytest.raises(ToolError, match=r"invalid sort 'bogus'.*relevance"):
+        asyncio.run(mcp.call_tool("search_problem_statements", {"sort": "bogus"}))

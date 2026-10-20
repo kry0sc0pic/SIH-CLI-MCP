@@ -137,7 +137,7 @@ claude mcp add sih -- uv run --directory /path/to/SIH-CLI-MCP sih-mcp
 uv run pytest
 ```
 
-Tests run against a small synthetic copy of the page and never touch the network or your real cache.
+Tests run against a small synthetic copy of the page and never touch the network or your real cache. They include a test that starts the real `sih-mcp` server as a subprocess and talks MCP to it over stdio.
 
 ## License
 
